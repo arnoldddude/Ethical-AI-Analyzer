@@ -1,5 +1,6 @@
 import sys
 import pandas as pd
+import numpy as np
 from fairlearn.metrics import MetricFrame, selection_rate, true_positive_rate
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
@@ -50,9 +51,11 @@ class Phase2Analyzer(QMainWindow):
             return
 
         self.target_column = self.targetColumnLineEdit.text().strip()
-        if self.target_column not in self.data.columns:
-            self.show_error_message("The target column is not valid. Please check your input.")
-            return
+        print(self.target_column)
+        print(list(self.data.columns))
+        # if self.target_column not in list(self.data.columns):
+        #     self.show_error_message("The target column is not valid. Please check your input.")
+        #     return
 
         sensitive_attrs_input = self.sensitiveAttributesLineEdit.text().strip()
         self.sensitive_attributes = [attr.strip() for attr in sensitive_attrs_input.split(",") if attr.strip()]
@@ -67,12 +70,19 @@ class Phase2Analyzer(QMainWindow):
             self.show_error_message(f"Error during analysis: {e}")
 
     def preprocess_data(self):
+        # print(self.data)
+        self.data = self.clean_dataframe(self.data)
+        print(self.data)
+
         X = pd.get_dummies(self.data.drop(columns=[self.target_column]), drop_first=True)
         y = self.data[self.target_column]
+        print(f"X shape: {X.shape}")  # Number of rows and columns in X
+        print(f"y shape: {y.shape}")
         return train_test_split(X, y, test_size=0.3, random_state=42)
 
     def train_model(self):
         X_train, X_test, y_train, y_test = self.preprocess_data()
+        # print(y_train.shape)
         self.model = RandomForestClassifier(random_state=42)
         self.model.fit(X_train, y_train)
         y_pred = self.model.predict(X_test)
@@ -116,7 +126,9 @@ class Phase2Analyzer(QMainWindow):
 
     def run_analysis(self):
         X_test, y_test, y_pred = self.train_model()
+        print("fish and eggs")
         for attribute in self.sensitive_attributes:
+            print("goats and cows")
             print(f"\nAnalyzing bias for {attribute}:")
             metric_frame = self.analyze_bias(y_test, y_pred, self.data[attribute])
             fairness_score = self.composite_fairness_score(metric_frame)
@@ -133,6 +145,28 @@ class Phase2Analyzer(QMainWindow):
 
     def show_error_message(self, message):
         QMessageBox.critical(self, "Error", message)
+
+    def clean_dataframe(self, df, odd_values=['?', '', 'NaN', 'na', 'n/a']):
+        """
+        Cleans a DataFrame by identifying and handling odd values.
+
+        Parameters:
+        - df: The DataFrame to clean.
+        - odd_values: A list of odd or invalid values to replace (e.g., '?', empty strings).
+
+        Returns:
+        - cleaned_df: A cleaned DataFrame with odd values replaced and dropped.
+        """
+        # Replace odd values with NaN
+        df_replaced = df.replace(odd_values, np.nan)
+        #
+        # # Count odd values in each column
+        # odd_value_counts = df_replaced.isna().sum()
+
+        # Drop rows with any odd (NaN) values
+        cleaned_df = df_replaced.dropna()
+
+        return cleaned_df
 
 
 if __name__ == "__main__":
