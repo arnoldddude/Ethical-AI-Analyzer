@@ -10,6 +10,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QMessageBox
 from PyQt5.uic import loadUi  # Load UI from Qt Designer files
+from collections import Counter
 
 
 class Phase2Analyzer(QMainWindow):
@@ -29,6 +30,8 @@ class Phase2Analyzer(QMainWindow):
         self.target_column = None
         self.sensitive_attributes = None
         self.model = None
+        self.sensitive_train = None
+        self.sensitive_test = None
 
     def select_dataset(self):
         # Open a file dialog to select the dataset
@@ -64,10 +67,10 @@ class Phase2Analyzer(QMainWindow):
             return
         # print(self.sensitive_attributes)
         # Run the analysis
-        try:
-            self.run_analysis()
-        except Exception as e:
-            self.show_error_message(f"Error during analysis: {e}")
+        # try:
+        self.run_analysis()
+        # except Exception as e:
+        #     self.show_error_message(f"Error during analysis: {e}")
 
     def preprocess_data(self):
         # print(self.data)
@@ -82,6 +85,8 @@ class Phase2Analyzer(QMainWindow):
 
     def train_model(self):
         X_train, X_test, y_train, y_test = self.preprocess_data()
+        self.sensitive_train = self.data.loc[X_train.index, self.sensitive_attributes]
+        self.sensitive_test = self.data.loc[X_test.index, self.sensitive_attributes]
         # print(y_train.shape)
         # print(y_test.shape)
         # print(X_test.shape)
@@ -135,15 +140,20 @@ class Phase2Analyzer(QMainWindow):
     def run_analysis(self):
         X_test, y_test, y_pred = self.train_model()
         print("fish and eggs")
+        # print(self.sensitive_attributes)
         for attribute in self.sensitive_attributes:
             print("goats and cows")
             print(f"\nAnalyzing bias for {attribute}:")
-            print(X_test.shape)
-            print(y_test.shape)
-            print(y_pred.shape)
-            # error is here
-            metric_frame = self.analyze_bias(y_test, y_pred, self.data[attribute])
+            print(self.sensitive_test)
+            detect_pos = self.detect_positive_class(y_test)
+            print(f"{detect_pos} will serve as our positive")
+            y_test = (y_test == detect_pos).astype(int)  # Convert to {0,1}
+            y_pred = (y_pred == detect_pos).astype(int)
+            # print("Unique values in y_true:", set(y_test))
+            # print("Unique values in y_pred:", set(y_pred))
 
+            metric_frame = self.analyze_bias(y_test, y_pred, self.sensitive_test)
+            # error is here
             fairness_score = self.composite_fairness_score(metric_frame)
 
             print(metric_frame.by_group)
@@ -180,6 +190,12 @@ class Phase2Analyzer(QMainWindow):
         cleaned_df = df_replaced.dropna()
 
         return cleaned_df
+
+    def detect_positive_class(self, y_true):
+        class_counts = Counter(y_true)
+        return max(class_counts, key=class_counts.get)  # Most frequent class
+
+
 
 
 if __name__ == "__main__":
