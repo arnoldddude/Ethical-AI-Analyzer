@@ -62,7 +62,7 @@ class Phase2Analyzer(QMainWindow):
         if not all(attr in self.data.columns for attr in self.sensitive_attributes):
             self.show_error_message("Some sensitive attributes are not valid. Please check your input.")
             return
-        # print(self.data.head())
+        # print(self.sensitive_attributes)
         # Run the analysis
         try:
             self.run_analysis()
@@ -83,10 +83,18 @@ class Phase2Analyzer(QMainWindow):
     def train_model(self):
         X_train, X_test, y_train, y_test = self.preprocess_data()
         # print(y_train.shape)
+        # print(y_test.shape)
+        # print(X_test.shape)
+        # print(X_train.shape)
+
         self.model = RandomForestClassifier(random_state=42)
         self.model.fit(X_train, y_train)
         y_pred = self.model.predict(X_test)
+        # print(y_test.shape)
+        # print(X_test.shape)
         accuracy = accuracy_score(y_test, y_pred)
+        # print(y_test.shape)
+        # print(X_test.shape)
         print(f"Model trained with accuracy: {accuracy:.2f}")
         return X_test, y_test, y_pred
 
@@ -130,7 +138,12 @@ class Phase2Analyzer(QMainWindow):
         for attribute in self.sensitive_attributes:
             print("goats and cows")
             print(f"\nAnalyzing bias for {attribute}:")
+            print(X_test.shape)
+            print(y_test.shape)
+            print(y_pred.shape)
+            # error is here
             metric_frame = self.analyze_bias(y_test, y_pred, self.data[attribute])
+
             fairness_score = self.composite_fairness_score(metric_frame)
 
             print(metric_frame.by_group)
