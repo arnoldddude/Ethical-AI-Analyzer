@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QMessageBox
 from PyQt5.uic import loadUi  # Load UI from Qt Designer files
 from collections import Counter
+from tqdm import tqdm
 
 
 class Phase2Analyzer(QMainWindow):
@@ -134,13 +135,30 @@ class Phase2Analyzer(QMainWindow):
 
     #error in this function
     def explain_model(self, X_test):
-        if isinstance(X_test, pd.DataFrame):
-            X_test = X_test.to_numpy()
-        feature_names = X_test.columns if isinstance(X_test, pd.DataFrame) else [f"Feature {i}" for i in range(X_test.shape[1])]
-        explainer = shap.Explainer(self.model, X_test, feature_names=feature_names)
+        explainer = shap.TreeExplainer(self.model)
+        explanation = []
         # explainer = shap.Explainer(self.model, X_test)
-        shap_values = explainer(X_test)
-        shap.summary_plot(shap_values, X_test)
+        # explanation = explainer.shap_values(X_test)
+        # shap.summary_plot(explanation, X_test)
+
+        # Use tqdm to show progress for each instance in X_test
+        for i in tqdm(range(len(X_test)), desc="Calculating SHAP values", unit="instance"):
+            explanation.append(explainer.shap_values(X_test[i:i + 1]))  # Calculate SHAP values for each instance
+
+        # If the model is multi-class, explanation will be a list (one element per class)
+        if isinstance(explanation, list):
+            print("goat and eggs")
+            explanation = explanation[:, :, 1]  # Select SHAP values for class 1
+        # Ensure shapes of X_test and shap_values (explanation) match
+
+        # Ensure X_test is a DataFrame
+        if not isinstance(X_test, pd.DataFrame):
+            X_test = pd.DataFrame(X_test, columns=[f"Feature {i}" for i in range(X_test.shape[1])])
+
+        print(X_test.shape)
+        print(explanation.shape)
+
+        shap.summary_plot(explanation, X_test)
 
     def run_analysis(self):
         X_test, y_test, y_pred = self.train_model()
@@ -169,7 +187,7 @@ class Phase2Analyzer(QMainWindow):
 
         # Explainability
         print("\nGenerating explainability visualizations...")
-        X_test = X_test.astype('float64')
+        # X_test = X_test.astype('float64')
         # print(X_test.dtypes)
         result = self.explain_model(X_test)
         self.explanation_textEdit.setPlainText(result)
